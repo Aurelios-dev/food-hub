@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { io } from 'socket.io-client';
 
 // YAYINLARKEN BURAYI DEĞİŞTİRECEĞİZ
-const BACKEND_URL = "http://localhost:5000"; 
+const BACKEND_URL = "https://food-hub-i6wk.onrender.com"; 
 const socket = io(BACKEND_URL);
 
 export default function Dashboard() {
