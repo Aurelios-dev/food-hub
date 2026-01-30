@@ -1,4 +1,4 @@
-const BACKEND_URL = "http://localhost:5000";
+const BACKEND_URL = "https://food-hub-i6wk.onrender.com";
 let allowedLinks = [];
 
 async function fetchConfig() {
@@ -31,4 +31,5 @@ async function scan() {
 
 setInterval(fetchConfig, 10000);
 setInterval(scan, 3000);
+
 fetchConfig();
