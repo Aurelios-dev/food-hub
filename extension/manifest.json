@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "Sipariş Takip Sistemi - Güray Özşeker",
+  "version": "1.0",
+  "description": "Yemeksepeti, Getir ve Trendyol siparişlerini tek merkezde toplar.",
+  "permissions": ["storage", "tabs"],
+  "host_permissions": [
+    "https://*.yemeksepeti.com/*",
+    "https://*.getir.com/*",
+    "https://*.trendyol.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["https://*.yemeksepeti.com/restaurant-panel/*"], 
+      "js": ["content.js"]
+    }
+  ]
+}
