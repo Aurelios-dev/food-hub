@@ -8,37 +8,32 @@ const nodemailer = require('nodemailer');
 const app = express();
 const server = http.createServer(app);
 
-// CORS Ayarları - Tarayıcı engellerini kaldırmak için
 app.use(cors({ origin: "*" }));
 app.use(express.json());
 
 const io = new Server(server, { cors: { origin: "*" } });
 
-// 1. MONGODB BAĞLANTISI
-// BURAYA KENDİ MONGODB ATLAS LİNKİNİ YAPIŞTIR
-const mongoURI = 'mongodb+srv://food:mrygry4343@mith.0xx6gin.mongodb.net/?appName=Mith'; 
-mongoose.connect(mongoURI)
+// MongoDB Bağlantısı
+mongoose.connect('mongodb+srv://food:mrygry4343@mith.0xx6gin.mongodb.net/?appName=Mith')
     .then(() => console.log("MongoDB Bağlantısı Başarılı!"))
     .catch(err => console.log("MongoDB Hatası:", err));
 
 const SettingSchema = new mongoose.Schema({ type: String, value: String });
 const Setting = mongoose.model('Setting', SettingSchema);
 
-// 2. OUTLOOK MAIL AYARLARI
+// Outlook Mail Ayarları
 const transporter = nodemailer.createTransport({
     host: "smtp.office365.com",
     port: 587,
     secure: false,
     auth: {
-        user: 'guray.ozseker@outlook.com', // Kendi mailin
-        pass: 'njtovqqvjtfdtqjy' // 16 haneli Uygulama Şifresi
+        user: 'guray.ozseker@outlook.com',
+        pass: 'njtovqqvjtfdtqjy' // 16 haneli App Password
     },
     tls: { ciphers: 'SSLv3', rejectUnauthorized: false }
 });
 
-// --- API ENDPOINTS ---
-
-// E-postaları Getir/Ekle
+// API Endpoints
 app.get('/api/settings/emails', async (req, res) => {
     const data = await Setting.find({ type: 'email' });
     res.json(data.map(d => d.value));
@@ -48,8 +43,11 @@ app.post('/api/settings/emails', async (req, res) => {
     const data = await Setting.find({ type: 'email' });
     res.json(data.map(d => d.value));
 });
+app.delete('/api/settings/emails', async (req, res) => {
+    await Setting.deleteOne({ type: 'email', value: req.body.email });
+    res.json({ status: "ok" });
+});
 
-// Linkleri Getir/Ekle
 app.get('/api/settings/links', async (req, res) => {
     const data = await Setting.find({ type: 'link' });
     res.json(data.map(d => d.value));
@@ -59,44 +57,38 @@ app.post('/api/settings/links', async (req, res) => {
     const data = await Setting.find({ type: 'link' });
     res.json(data.map(d => d.value));
 });
+app.delete('/api/settings/links', async (req, res) => {
+    await Setting.deleteOne({ type: 'link', value: req.body.link });
+    res.json({ status: "ok" });
+});
 
-// Eklenti İçin Ayarlar
 app.get('/api/extension/config', async (req, res) => {
     const data = await Setting.find({ type: 'link' });
     res.json({ allowedLinks: data.map(d => d.value) });
 });
 
-// YENİ SİPARİŞ ALMA (EN ÖNEMLİ KISIM)
+// Sipariş Alma ve Mail Tetikleme
 app.post('/api/new-order', async (req, res) => {
     try {
         const order = req.body;
-        console.log("Yeni sipariş alındı:", order.customerName);
+        console.log("Yeni sipariş:", order.customerName);
 
-        // 1. Panele (Socket.io) Gönder
         io.emit('admin-new-order', order);
 
-        // 2. Kayıtlı Maillere Gönder
-        const targetEmails = await Setting.find({ type: 'email' });
-        if (targetEmails.length > 0) {
-            const mailOptions = {
+        const emails = await Setting.find({ type: 'email' });
+        if (emails.length > 0) {
+            transporter.sendMail({
                 from: '"Sipariş Sistemi" <GURAY_MAIL_ADRESIN@outlook.com>',
-                to: targetEmails.map(e => e.value).join(','),
-                subject: `SİPARİŞ GELDİ: ${order.customerName}`,
-                text: `Platform: ${order.platform}\nMüşteri: ${order.customerName}\nKod: ${order.orderCode}\nÜrünler: ${order.items}`
-            };
-
-            transporter.sendMail(mailOptions, (error, info) => {
-                if (error) console.log("Mail Hatası:", error.message);
-                else console.log("Mail Gönderildi: " + info.response);
-            });
+                to: emails.map(e => e.value).join(','),
+                subject: `Sipariş: ${order.customerName}`,
+                text: `Müşteri: ${order.customerName}\nÜrünler: ${order.items}\nKod: ${order.orderCode}`
+            }).catch(e => console.log("Mail Hatası:", e.message));
         }
-
         res.status(200).json({ status: "success" });
     } catch (err) {
-        console.error("Sipariş işleme hatası:", err);
-        res.status(500).json({ error: "Sistem hatası" });
+        res.status(500).json({ error: "Hata oluştu" });
     }
 });
 
 const PORT = process.env.PORT || 10000;
-server.listen(PORT, () => console.log(`Backend ${PORT} portunda aktif.`));
+server.listen(PORT, () => console.log(`Sistem aktif: ${PORT}`));
