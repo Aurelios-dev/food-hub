@@ -5,107 +5,158 @@ const cors = require('cors');
 const mongoose = require('mongoose');
 const nodemailer = require('nodemailer');
 
+/* =======================
+   APP & SOCKET SETUP
+======================= */
 const app = express();
 const server = http.createServer(app);
-
-app.use(cors({ origin: "*" }));
-app.use(express.json());
-
-const io = new Server(server, { cors: { origin: "*" } });
-
-// MongoDB Bağlantısı
-mongoose.connect('mongodb+srv://food:mrygry4343@mith.0xx6gin.mongodb.net/?appName=Mith')
-    .then(() => console.log("MongoDB Bağlantısı Başarılı!"))
-    .catch(err => console.log("MongoDB Hatası:", err));
-
-const SettingSchema = new mongoose.Schema({ type: String, value: String });
-const Setting = mongoose.model('Setting', SettingSchema);
-
-// Outlook Mail Ayarları
-const transporter = nodemailer.createTransport({
-    host: "smtp.office365.com",
-    port: 587,
-    secure: false,
-    auth: {
-        user: 'guray.ozseker@outlook.com',
-        pass: 'njtovqqvjtfdtqjy' // 16 haneli App Password
-    },
-    tls: { ciphers: 'SSLv3', rejectUnauthorized: false }
-});
-
-// API Endpoints
-app.get('/api/settings/emails', async (req, res) => {
-    const data = await Setting.find({ type: 'email' });
-    res.json(data.map(d => d.value));
-});
-app.post('/api/settings/emails', async (req, res) => {
-    if(req.body.email) await new Setting({ type: 'email', value: req.body.email }).save();
-    const data = await Setting.find({ type: 'email' });
-    res.json(data.map(d => d.value));
-});
-app.delete('/api/settings/emails', async (req, res) => {
-    await Setting.deleteOne({ type: 'email', value: req.body.email });
-    res.json({ status: "ok" });
-});
-
-app.get('/api/settings/links', async (req, res) => {
-    const data = await Setting.find({ type: 'link' });
-    res.json(data.map(d => d.value));
-});
-app.post('/api/settings/links', async (req, res) => {
-    if(req.body.link) await new Setting({ type: 'link', value: req.body.link }).save();
-    const data = await Setting.find({ type: 'link' });
-    res.json(data.map(d => d.value));
-});
-app.delete('/api/settings/links', async (req, res) => {
-    await Setting.deleteOne({ type: 'link', value: req.body.link });
-    res.json({ status: "ok" });
-});
-
-app.get('/api/extension/config', async (req, res) => {
-    const data = await Setting.find({ type: 'link' });
-    res.json({ allowedLinks: data.map(d => d.value) });
-});
-
-// Sipariş Alma ve Mail Tetikleme
-app.post('/api/new-order', async (req, res) => {
-    try {
-        const order = req.body;
-        console.log("Yeni sipariş geldi:", order.customerName);
-
-        // 1. Panele anında gönder (Burası zaten çalışıyor)
-        io.emit('admin-new-order', order);
-
-        // 2. Mail Gönderimi (Hata korumalı)
-        const emails = await Setting.find({ type: 'email' });
-        if (emails.length > 0) {
-            const mailList = emails.map(e => e.value).join(',');
-            
-            transporter.sendMail({
-                from: '"Food Hub" <GURAY_MAIL_ADRESIN@outlook.com>',
-                to: mailList,
-                subject: `Sipariş Geldi: ${order.customerName}`,
-                html: `
-                    <h3>Yeni Sipariş Detayı</h3>
-                    <p><b>Müşteri:</b> ${order.customerName}</p>
-                    <p><b>Ürünler:</b> ${order.items}</p>
-                    <p><b>Platform:</b> ${order.platform}</p>
-                    <hr>
-                    <p>Bu mail otomatik olarak gönderilmiştir.</p>
-                `
-            }, (error, info) => {
-                if (error) console.log("Mail Hatası (Log):", error.message);
-                else console.log("Mail Gönderildi (Log):", info.response);
-            });
-        }
-
-        res.status(200).json({ status: "success" });
-    } catch (err) {
-        console.error("Genel Hata:", err);
-        res.status(500).json({ error: "Sistem hatası" });
+const io = new Server(server, {
+    cors: {
+        origin: "*",
+        methods: ["GET", "POST"]
     }
 });
 
-const PORT = process.env.PORT || 10000;
-server.listen(PORT, () => console.log(`Sistem aktif: ${PORT}`));
+app.use(cors());
+app.use(express.json());
 
+/* =======================
+   MONGODB CONNECTION
+======================= */
+mongoose.connect(
+    'mongodb+srv://food:mrygry4343@mith.0xx6gin.mongodb.net/?appName=Mith',
+    {
+        useNewUrlParser: true,
+        useUnifiedTopology: true
+    }
+)
+.then(() => {
+    console.log("✅ MongoDB bağlantısı başarılı");
+})
+.catch((err) => {
+    console.error("❌ MongoDB bağlantı hatası:", err);
+});
+
+/* =======================
+   DATABASE SCHEMAS
+======================= */
+const SettingSchema = new mongoose.Schema({
+    type: {
+        type: String,
+        required: true
+    },
+    value: {
+        type: String,
+        required: true
+    }
+});
+
+const Setting = mongoose.model('Setting', SettingSchema);
+
+/* =======================
+   GMAIL SMTP SETUP
+   (APP PASSWORD ŞART)
+======================= */
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: 'guray9307@gmail.com',     // GMAIL ADRESİN
+        pass: 'ulludglwkoyiroah'       // 16 HANELİ APP PASSWORD
+    }
+});
+
+/* =======================
+   SOCKET.IO EVENTS
+======================= */
+io.on('connection', (socket) => {
+    console.log('🟢 Admin bağlandı:', socket.id);
+
+    socket.on('disconnect', () => {
+        console.log('🔴 Admin ayrıldı:', socket.id);
+    });
+});
+
+/* =======================
+   API ROUTES
+======================= */
+
+// Kayıtlı email listesi
+app.get('/api/settings/emails', async (req, res) => {
+    try {
+        const emails = await Setting.find({ type: 'email' });
+        res.json(emails.map(e => e.value));
+    } catch (err) {
+        res.status(500).json({ error: 'Email listesi alınamadı' });
+    }
+});
+
+// Yeni email ekleme
+app.post('/api/settings/emails', async (req, res) => {
+    try {
+        const { email } = req.body;
+
+        if (!email) {
+            return res.status(400).json({ error: 'Email gerekli' });
+        }
+
+        await new Setting({
+            type: 'email',
+            value: email
+        }).save();
+
+        const emails = await Setting.find({ type: 'email' });
+        res.json(emails.map(e => e.value));
+    } catch (err) {
+        res.status(500).json({ error: 'Email eklenemedi' });
+    }
+});
+
+// Yeni sipariş
+app.post('/api/new-order', async (req, res) => {
+    try {
+        const order = req.body;
+
+        // Socket ile admin paneline gönder
+        io.emit('admin-new-order', order);
+
+        // Email gönderilecek adresler
+        const targetEmails = await Setting.find({ type: 'email' });
+
+        if (targetEmails.length > 0) {
+            const mailOptions = {
+                from: `"Sipariş Botu" <seninmail@gmail.com>`,
+                to: targetEmails.map(e => e.value).join(','),
+                subject: `🛒 YENİ SİPARİŞ - ${order.customerName}`,
+                text: `
+YENİ SİPARİŞ ALINDI
+
+Platform     : ${order.platform}
+Müşteri      : ${order.customerName}
+Ürünler      : ${order.items}
+Sipariş Kodu : ${order.orderCode}
+                `
+            };
+
+            transporter.sendMail(mailOptions, (err) => {
+                if (err) {
+                    console.error("❌ Mail gönderme hatası:", err);
+                } else {
+                    console.log("✅ Mail başarıyla gönderildi");
+                }
+            });
+        }
+
+        res.json({ status: "success" });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Sipariş işlenemedi' });
+    }
+});
+
+/* =======================
+   SERVER START
+======================= */
+const PORT = process.env.PORT || 5000;
+server.listen(PORT, () => {
+    console.log(`🚀 Server ${PORT} portunda çalışıyor`);
+});
