@@ -45,10 +45,12 @@ const Setting = mongoose.model('Setting', SettingSchema);
    (APP PASSWORD)
 ======================= */
 const transporter = nodemailer.createTransport({
-    service: 'gmail',
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true, // SSL
     auth: {
-        user: 'guray9307@gmail.com',      // GMAIL
-        pass: 'ulludglwkoyiroah'        // 16 haneli App Password
+        user: 'guray9307@gmail.com',
+        pass: 'ulludglwkoyiroah'
     }
 });
 
@@ -192,3 +194,4 @@ const PORT = process.env.PORT || 10000;
 server.listen(PORT, () => {
     console.log(`🚀 Server ${PORT} portunda çalışıyor`);
 });
+
