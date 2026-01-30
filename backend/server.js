@@ -24,11 +24,7 @@ app.use(express.json());
    MONGODB CONNECTION
 ======================= */
 mongoose.connect(
-    'mongodb+srv://food:mrygry4343@mith.0xx6gin.mongodb.net/?appName=Mith',
-    {
-        useNewUrlParser: true,
-        useUnifiedTopology: true
-    }
+    'mongodb+srv://food:mrygry4343@mith.0xx6gin.mongodb.net/?appName=Mith'
 )
 .then(() => {
     console.log("✅ MongoDB bağlantısı başarılı");
@@ -160,3 +156,4 @@ const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
     console.log(`🚀 Server ${PORT} portunda çalışıyor`);
 });
+
