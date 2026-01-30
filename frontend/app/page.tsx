@@ -47,7 +47,7 @@ export default function Dashboard() {
     <div className="min-h-screen bg-slate-900 text-white p-10 font-sans">
       <div className="max-w-5xl mx-auto">
         <header className="flex justify-between items-center mb-10">
-          <h1 className="text-2xl font-bold tracking-tighter text-blue-400">FOOD PANEL | PANEL</h1>
+          <h1 className="text-2xl font-bold tracking-tighter text-blue-400">DEMO FOOD PANEL | Guray OZSEKER</h1>
           <div className={`px-4 py-1 rounded-full text-xs font-bold ${isConnected ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'}`}>
             {isConnected ? 'SİSTEM AKTİF' : 'BAĞLANTI YOK'}
           </div>
