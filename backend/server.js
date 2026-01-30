@@ -71,24 +71,41 @@ app.get('/api/extension/config', async (req, res) => {
 app.post('/api/new-order', async (req, res) => {
     try {
         const order = req.body;
-        console.log("Yeni sipariş:", order.customerName);
+        console.log("Yeni sipariş geldi:", order.customerName);
 
+        // 1. Panele anında gönder (Burası zaten çalışıyor)
         io.emit('admin-new-order', order);
 
+        // 2. Mail Gönderimi (Hata korumalı)
         const emails = await Setting.find({ type: 'email' });
         if (emails.length > 0) {
+            const mailList = emails.map(e => e.value).join(',');
+            
             transporter.sendMail({
-                from: '"Sipariş Sistemi" <GURAY_MAIL_ADRESIN@outlook.com>',
-                to: emails.map(e => e.value).join(','),
-                subject: `Sipariş: ${order.customerName}`,
-                text: `Müşteri: ${order.customerName}\nÜrünler: ${order.items}\nKod: ${order.orderCode}`
-            }).catch(e => console.log("Mail Hatası:", e.message));
+                from: '"Food Hub" <GURAY_MAIL_ADRESIN@outlook.com>',
+                to: mailList,
+                subject: `Sipariş Geldi: ${order.customerName}`,
+                html: `
+                    <h3>Yeni Sipariş Detayı</h3>
+                    <p><b>Müşteri:</b> ${order.customerName}</p>
+                    <p><b>Ürünler:</b> ${order.items}</p>
+                    <p><b>Platform:</b> ${order.platform}</p>
+                    <hr>
+                    <p>Bu mail otomatik olarak gönderilmiştir.</p>
+                `
+            }, (error, info) => {
+                if (error) console.log("Mail Hatası (Log):", error.message);
+                else console.log("Mail Gönderildi (Log):", info.response);
+            });
         }
+
         res.status(200).json({ status: "success" });
     } catch (err) {
-        res.status(500).json({ error: "Hata oluştu" });
+        console.error("Genel Hata:", err);
+        res.status(500).json({ error: "Sistem hatası" });
     }
 });
 
 const PORT = process.env.PORT || 10000;
 server.listen(PORT, () => console.log(`Sistem aktif: ${PORT}`));
+
