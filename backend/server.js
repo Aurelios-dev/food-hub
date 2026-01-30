@@ -13,7 +13,7 @@ app.use(cors());
 app.use(express.json());
 
 // 1. MONGODB BAĞLANTISI (Kendi linkini buraya yapıştır)
-mongoose.connect('mongodb+srv://food:mrygry4343@mith.0xx6gin.mongodb.net/?appName=Mith', { useNewUrlParser: true, useUnifiedTopology: true })
+mongoose.connect('mongodb+srv://food:mrygry4343@mith.0xx6gin.mongodb.net/?appName=Mith')
     .then(() => console.log("MongoDB Bağlantısı Başarılı!"))
     .catch(err => console.log("Bağlantı Hatası:", err));
 
